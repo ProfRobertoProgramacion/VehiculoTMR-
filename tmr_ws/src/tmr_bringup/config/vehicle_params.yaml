@@ -39,7 +39,7 @@ lane_controller_node:
 
 arduino_bridge_node:
   ros__parameters:
-    port: "/dev/ttyACM0"       # Cambiar a /dev/ttyUSB0 según corresponda en la Odroid
+    port: "/dev/ttyUSB0"       # /dev/ttyUSB0 (Arduino Nano/CH340) o /dev/ttyACM0 (Arduino Uno)
     baud_rate: 115200
     servo_center_deg: 90       # Calibración de centro
     servo_range_deg: 35        # Rango útil: 90 +/- 35 (55 a 125 deg)

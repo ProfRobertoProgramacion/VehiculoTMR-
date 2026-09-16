@@ -5,6 +5,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <cstring>
+#include <vector>
 #include <algorithm>
 #include <cmath>
 
@@ -19,7 +20,7 @@ class ArduinoBridgeNode : public rclcpp::Node {
 public:
     ArduinoBridgeNode() : Node("arduino_bridge_node"), serial_fd_(-1) {
         // Parámetros de puerto serie
-        this->declare_parameter<std::string>("port", "/dev/ttyACM0");
+        this->declare_parameter<std::string>("port", "/dev/ttyUSB0");
         this->declare_parameter<int>("baud_rate", 115200);
 
         // Calibración de Servo (Dirección)
@@ -76,6 +77,23 @@ private:
         }
 
         serial_fd_ = open(port_.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
+        if (serial_fd_ < 0) {
+            // Auto-detección: si el puerto configurado no abre, probar alternativas comunes
+            const std::vector<std::string> candidates = {"/dev/ttyUSB0", "/dev/ttyACM0", "/dev/ttyUSB1", "/dev/ttyACM1"};
+            for (const auto &cand : candidates) {
+                if (cand != port_ && access(cand.c_str(), F_OK) == 0) {
+                    RCLCPP_INFO(this->get_logger(), "Puerto %s no disponible. Auto-detectado y probando %s...",
+                                port_.c_str(), cand.c_str());
+                    port_ = cand;
+                    serial_fd_ = open(port_.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
+                    if (serial_fd_ >= 0) {
+                        RCLCPP_INFO(this->get_logger(), "¡Conectado exitosamente al puerto alternativo %s!", port_.c_str());
+                        break;
+                    }
+                }
+            }
+        }
+
         if (serial_fd_ < 0) {
             RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
                                  "No se puede abrir el puerto %s. Reintentando...", port_.c_str());
