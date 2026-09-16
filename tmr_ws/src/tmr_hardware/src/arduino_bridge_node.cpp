@@ -58,6 +58,9 @@ public:
         std::bind(&ArduinoBridgeNode::cmdCallback, this,
                   std::placeholders::_1));
 
+    // Inicializar reloj de watchdog local
+    last_cmd_time_ = this->now();
+
     // Timer de reintento de conexión y heartbeat
     heartbeat_timer_ = this->create_wall_timer(
         100ms, std::bind(&ArduinoBridgeNode::heartbeat, this));
