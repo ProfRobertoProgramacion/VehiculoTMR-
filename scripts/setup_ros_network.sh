@@ -31,10 +31,10 @@ echo "[OK] ROS_DOMAIN_ID=$ROS_DOMAIN_ID"
 export ROS_LOCALHOST_ONLY=0
 echo "[OK] ROS_LOCALHOST_ONLY=$ROS_LOCALHOST_ONLY"
 
-# 5. RMW Middleware por defecto (FastDDS o CycloneDDS)
-# Si se tiene problemas con FastDDS por defecto en Wi-Fi, se puede instalar:
-# sudo apt install ros-foxy-rmw-cyclonedds-cpp
-# y descomentar la siguiente línea:
-# export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+# 5. Configurar enlace directo Unicast (evita bloqueo de Multicast en routers Wi-Fi)
+if [ -f "$SCRIPT_DIR/config/fastdds_unicast.xml" ]; then
+    export FASTRTPS_DEFAULT_PROFILES_FILE="$SCRIPT_DIR/config/fastdds_unicast.xml"
+    echo "[OK] FastDDS Unicast activado: $FASTRTPS_DEFAULT_PROFILES_FILE"
+fi
 
 echo "=== Entorno listo. Para verificar dispositivos en red ejecuta: ros2 node list ==="
