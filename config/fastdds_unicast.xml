@@ -5,6 +5,30 @@
             <rtps>
                 <builtin>
                     <initialPeersList>
+                        <!-- Broadcast a toda la subred local: inmune a cambios de IP por DHCP -->
+                        <locator>
+                            <udpv4>
+                                <address>192.168.0.255</address>
+                            </udpv4>
+                        </locator>
+                        <!-- Multicast estándar DDS -->
+                        <locator>
+                            <udpv4>
+                                <address>239.255.0.1</address>
+                            </udpv4>
+                        </locator>
+                        <!-- IPs actuales directas de Odroid y PC -->
+                        <locator>
+                            <udpv4>
+                                <address>192.168.0.182</address>
+                            </udpv4>
+                        </locator>
+                        <locator>
+                            <udpv4>
+                                <address>192.168.0.100</address>
+                            </udpv4>
+                        </locator>
+                        <!-- IPs anteriores como respaldo -->
                         <locator>
                             <udpv4>
                                 <address>192.168.0.181</address>
@@ -15,6 +39,7 @@
                                 <address>192.168.0.236</address>
                             </udpv4>
                         </locator>
+                        <!-- Localhost -->
                         <locator>
                             <udpv4>
                                 <address>127.0.0.1</address>

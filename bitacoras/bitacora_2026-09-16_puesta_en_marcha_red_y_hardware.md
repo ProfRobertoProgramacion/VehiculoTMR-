@@ -22,7 +22,7 @@ Desarrollo de un vehículo autónomo a escala con dirección tipo Ackermann para
 
 | Dispositivo | Hostname | Usuario | Dirección IP | Función |
 | :--- | :--- | :--- | :--- | :--- |
-| **Odroid M1S** | `gnome-desktop` | `odroid` | `192.168.0.181` | Ejecución a bordo: captura de cámara USB y puente serie hacia Arduino |
+| **Odroid M1S** | `gnome-desktop` | `odroid` | `192.168.0.182` | Ejecución a bordo: captura de cámara USB y puente serie hacia Arduino |
 | **PC Windows 11 (WSL2)** | `sotelo` | `roberto` | `192.168.0.236` | Procesamiento pesado: Visión OpenCV C++ (IPM y carril), Controlador Stanley, depuración |
 
 ### Variables de Entorno ROS 2 Cruciales:
