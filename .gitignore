@@ -1,0 +1,31 @@
+# ROS 2 Colcon build directories
+tmr_ws/build/
+tmr_ws/install/
+tmr_ws/log/
+
+# Compiled Object files, libraries, executables
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.exe
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# C/C++ cache
+compile_commands.json
+.cache/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Log and temporary files
+*.log
+*.bag

@@ -1,0 +1,51 @@
+# ==============================================================================
+# Parámetros Centralizados para Vehículo Autónomo TMR
+# ==============================================================================
+
+usb_camera_node:
+  ros__parameters:
+    device_id: 0
+    width: 640
+    height: 480
+    framerate: 30
+    jpeg_quality: 75
+    frame_id: "camera_optical_frame"
+    publish_raw: true
+
+lane_detector_node:
+  ros__parameters:
+    binary_threshold: 200      # 0-255 para aislar líneas blancas sobre suelo negro
+    use_otsu: false
+    roi_top_pct: 0.45          # Ignorar la mitad superior (horizonte/fondo)
+    roi_bottom_pct: 0.95
+    pixels_to_meters: 0.0012   # Factor de escala tras IPM (calibrable con regla en pista)
+    lane_width_m: 0.40         # Ancho de carril oficial TMR: 40 cm (0.40 m)
+    lookahead_y: 250           # Distancia anticipada de seguimiento en píxeles IPM
+    use_compressed_sub: true   # Suscribirse a imagen comprimida en PC
+
+lane_controller_node:
+  ros__parameters:
+    controller_type: "stanley" # "stanley" (recomendado) o "pid"
+    k_stanley: 1.5             # Ganancia de error lateral en Stanley
+    epsilon_v: 0.1             # Regularizador para bajas velocidades
+    kp: 1.2
+    ki: 0.0
+    kd: 0.15
+    max_steering_angle_rad: 0.52 # ~30 grados máx
+    v_min: 0.35                # Velocidad en curvas cerradas (m/s)
+    v_max: 0.85                # Velocidad en rectas (m/s)
+    k_curvature: 2.0           # Factor de reducción por curvatura
+    autonomous_enabled_by_default: true
+
+arduino_bridge_node:
+  ros__parameters:
+    port: "/dev/ttyACM0"       # Cambiar a /dev/ttyUSB0 según corresponda en la Odroid
+    baud_rate: 115200
+    servo_center_deg: 90       # Calibración de centro
+    servo_range_deg: 35        # Rango útil: 90 +/- 35 (55 a 125 deg)
+    max_steering_angle_rad: 0.52
+    invert_steering: false     # true si gira al revés
+    esc_neutral_us: 1500       # 1500 us = Detenido
+    esc_forward_min_us: 1545   # Pulso para vencer la fricción estática
+    esc_forward_max_us: 1640   # Límite seguro para pruebas iniciales
+    v_max_mps: 1.0
