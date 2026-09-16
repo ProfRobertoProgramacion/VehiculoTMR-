@@ -16,15 +16,20 @@ struct LaneDetectionResult {
 };
 
 struct VisionParams {
-    int binary_threshold{200};      // Umbral para líneas blancas sobre pista negra
-    bool use_otsu{false};           // Usar umbralizado adaptativo Otsu
-    double roi_top_pct{0.45};       // Recorte de horizonte (ignorar parte superior de la imagen)
-    double roi_bottom_pct{0.95};
-    int bird_view_width{400};
-    int bird_view_height{400};
-    double pixels_to_meters{0.001}; // Factor de conversión escala píxel a metro
-    double lane_width_m{0.40};      // Ancho oficial carril TMR (40 cm)
-    int lookahead_y{250};           // Fila Y de evaluación en la vista de pájaro
+    int binary_threshold{110};      // Umbral de binarización
+    bool use_otsu{false};           // Usar Otsu adaptativo
+    bool invert_binary{true};       // true: cinta negra en piso blanco (prueba), false: cinta blanca en lona negra (torneo)
+    bool filter_glare{false};       // Filtro Morfológico Top-Hat para eliminar reflejos de lámparas en lona negra de torneo
+    double roi_top_pct{0.42};       // Horizonte (ignorar fondo y pared)
+    double roi_bottom_pct{0.98};    // Base inferior (a 10 cm del frente del auto)
+    int bird_view_width{400};       // Ancho resolución IPM
+    int bird_view_height{400};      // Alto resolución IPM
+    double pixels_to_meters{0.0015}; // Factor de escala: 0.60 m / 400 px = 1.5 mm/pixel
+    double lane_width_m{0.40};      // Ancho carril oficial TMR: 40 cm
+    double car_width_m{0.18};       // Ancho del auto: 18 cm
+    double target_right_margin_m{0.04}; // Margen oficial a la línea derecha: 4 cm
+    double line_thickness_m{0.02};  // Grosor de cinta: 2 cm en prueba, 4 cm en torneo
+    int lookahead_y{250};           // Fila Y de evaluación de dirección en la vista IPM
 };
 
 class LaneDetector {

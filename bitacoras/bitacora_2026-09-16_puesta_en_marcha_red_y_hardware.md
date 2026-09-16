@@ -151,5 +151,49 @@ ros2 run rqt_image_view rqt_image_view /tmr/vision_debug
   cd tmr_ws && colcon build --symlink-install && source install/setup.bash
   ```
 
+
+---
+
+## 5. Calibración Geométrica del Vehículo y Adaptación al Torneo TMR
+
+### 5.1 Medidas Físicas Reales Registradas
+* **Vehículo:**
+  * Ancho total: $18\text{ cm}$ ($0.18\text{ m}$).
+  * Largo total: $38\text{ cm}$ ($0.38\text{ m}$).
+  * Distancia entre ejes (*wheelbase* $L$): $23\text{ cm}$ ($0.23\text{ m}$).
+* **Cámara USB:**
+  * Altura sobre el piso: $38\text{ cm}$ ($0.38\text{ m}$).
+  * Posición longitudinal: $27\text{ cm}$ por detrás del parachoques frontal.
+  * Margen ciego inferior: Inicia a $10\text{ cm}$ del frente del parachoques.
+  * Campo visual horizontal en la base: $43\text{ cm}$ ($0.43\text{ m}$) a nivel de piso.
+* **Pista y Regla Reglamentaria TMR:**
+  * Ancho oficial de carril: $40\text{ cm}$ ($0.40\text{ m}$).
+  * **Regla estricta de navegación:** El auto **debe mantenerse a la derecha de su carril, a exactamente 4 cm de margen de la línea derecha**.
+
+### 5.2 Ecuación de Posicionamiento respecto a la Línea Derecha
+Dado que el detector de carril ubica el **centroide (pico central)** de la cinta, la distancia objetivo desde el eje central del vehículo hasta el centroide detectado es:
+$$\text{Distancia Objetivo} = \frac{\text{Ancho del Auto}}{2} + \text{Margen Reglamentario (4 cm)} + \frac{\text{Grosor de la Cinta}}{2}$$
+
+* **En Pruebas Actuales (cinta 2 cm):** $9\text{ cm} + 4\text{ cm} + 1\text{ cm} = 14\text{ cm}$ ($0.14\text{ m}$).
+* **En Torneo Oficial (cinta 4 cm):** $9\text{ cm} + 4\text{ cm} + 2\text{ cm} = 15\text{ cm}$ ($0.15\text{ m}$).
+* En caso de curvas pronunciadas donde solo se aprecie la línea izquierda, el sistema proyecta la posición usando:
+  $$\text{Posición Objetivo} = X_\text{izq} + (\text{Ancho Carril} - \text{Distancia Objetivo})$$
+
+### 5.3 Modos de Operación en `vehicle_params.yaml`
+
+| Parámetro | Modo Pruebas Actuales | Modo Torneo Oficial TMR |
+| :--- | :--- | :--- |
+| **Superficie** | Baldosas cuadradas blancas ($33\times 33\text{ cm}$) | Lona negra de PVC/vinil |
+| **Color de Línea** | Cinta de aislar negra | Cinta blanca de 4 cm |
+| `invert_binary` | `true` | `false` |
+| `filter_glare` | `false` | `true` (Filtro Top-Hat horizontal) |
+| `line_thickness_m` | `0.02` (2 cm) | `0.04` (4 cm) |
+| `binary_threshold` | `110` | `160` |
+
+### 5.4 Solución al Problema de Reflejos en la Lona Negra del Torneo
+La lona negra brillante genera reflejos especulares intensos producidos por las lámparas y reflectores del recinto. Para evitar falsos positivos:
+1. **Transformación a Bird's Eye View en escala de grises:** Se normaliza la perspectiva antes de binarizar para que cada centímetro físico mantenga escala métrica constante ($1.5\text{ mm/px}$).
+2. **Filtro Morfológico Top-Hat Horizontal:** Se aplica un elemento estructurante horizontal de $\sim 7\text{ cm}$ ($47\text{ px}$). Dado que las manchas de luz de los reflectores son amplias y la cinta blanca mide únicamente $4\text{ cm}$, la apertura morfológica sustrae las manchas de luz difusas y conserva nítidamente la cinta blanca.
+
 ---
 *Fin del registro de bitácora.*

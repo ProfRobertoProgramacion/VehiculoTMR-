@@ -14,14 +14,24 @@ usb_camera_node:
 
 lane_detector_node:
   ros__parameters:
-    binary_threshold: 200      # 0-255 para aislar líneas blancas sobre suelo negro
+    # --- MODO DE OPERACIÓN ---
+    # Para pruebas actuales (cinta negra en baldosas blancas):
+    #   invert_binary: true, filter_glare: false, line_thickness_m: 0.02, binary_threshold: 110
+    # Para el torneo oficial (cinta blanca de 4 cm en lona negra reflectante):
+    #   invert_binary: false, filter_glare: true, line_thickness_m: 0.04, binary_threshold: 160
+    invert_binary: true       # true: cinta oscura en fondo claro | false: cinta blanca en lona negra
+    filter_glare: false       # Filtro Morfológico Top-Hat (activar en torneo para eliminar reflejos de luces en lona)
+    binary_threshold: 110     # Umbral de binarización
     use_otsu: false
-    roi_top_pct: 0.45          # Ignorar la mitad superior (horizonte/fondo)
-    roi_bottom_pct: 0.95
-    pixels_to_meters: 0.0012   # Factor de escala tras IPM (calibrable con regla en pista)
-    lane_width_m: 0.40         # Ancho de carril oficial TMR: 40 cm (0.40 m)
-    lookahead_y: 250           # Distancia anticipada de seguimiento en píxeles IPM
-    use_compressed_sub: true   # Suscribirse a imagen comprimida en PC
+    roi_top_pct: 0.42         # Inicio vertical del trapecio (corte de horizonte y pared)
+    roi_bottom_pct: 0.98      # Base inferior a 10 cm del frente del auto
+    pixels_to_meters: 0.0015  # Escala métrica: 0.60 m / 400 px = 1.5 mm/pixel
+    lane_width_m: 0.40        # Ancho oficial del carril: 40 cm (0.40 m)
+    car_width_m: 0.18         # Ancho del vehículo: 18 cm (0.18 m)
+    target_right_margin_m: 0.04 # Regla oficial TMR: mantener el auto a 4 cm de la línea derecha
+    line_thickness_m: 0.02    # Grosor de la cinta: 2 cm en pruebas actuales, 4 cm en torneo
+    lookahead_y: 250          # Distancia anticipada de seguimiento en vista IPM (píxeles)
+    use_compressed_sub: true  # Suscribirse al stream comprimido para mayor velocidad y menor latencia WiFi
 
 lane_controller_node:
   ros__parameters:

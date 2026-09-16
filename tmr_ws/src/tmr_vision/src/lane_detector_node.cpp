@@ -9,12 +9,17 @@ class LaneDetectorNode : public rclcpp::Node {
 public:
     LaneDetectorNode() : Node("lane_detector_node") {
         // Parámetros configurables
-        this->declare_parameter<int>("binary_threshold", 200);
+        this->declare_parameter<int>("binary_threshold", 110);
         this->declare_parameter<bool>("use_otsu", false);
-        this->declare_parameter<double>("roi_top_pct", 0.45);
-        this->declare_parameter<double>("roi_bottom_pct", 0.95);
-        this->declare_parameter<double>("pixels_to_meters", 0.001);
+        this->declare_parameter<bool>("invert_binary", true);
+        this->declare_parameter<bool>("filter_glare", false);
+        this->declare_parameter<double>("roi_top_pct", 0.42);
+        this->declare_parameter<double>("roi_bottom_pct", 0.98);
+        this->declare_parameter<double>("pixels_to_meters", 0.0015);
         this->declare_parameter<double>("lane_width_m", 0.40);
+        this->declare_parameter<double>("car_width_m", 0.18);
+        this->declare_parameter<double>("target_right_margin_m", 0.04);
+        this->declare_parameter<double>("line_thickness_m", 0.02);
         this->declare_parameter<int>("lookahead_y", 250);
         this->declare_parameter<bool>("use_compressed_sub", true);
 
@@ -22,10 +27,15 @@ public:
         tmr_vision::VisionParams params;
         params.binary_threshold = this->get_parameter("binary_threshold").as_int();
         params.use_otsu = this->get_parameter("use_otsu").as_bool();
+        params.invert_binary = this->get_parameter("invert_binary").as_bool();
+        params.filter_glare = this->get_parameter("filter_glare").as_bool();
         params.roi_top_pct = this->get_parameter("roi_top_pct").as_double();
         params.roi_bottom_pct = this->get_parameter("roi_bottom_pct").as_double();
         params.pixels_to_meters = this->get_parameter("pixels_to_meters").as_double();
         params.lane_width_m = this->get_parameter("lane_width_m").as_double();
+        params.car_width_m = this->get_parameter("car_width_m").as_double();
+        params.target_right_margin_m = this->get_parameter("target_right_margin_m").as_double();
+        params.line_thickness_m = this->get_parameter("line_thickness_m").as_double();
         params.lookahead_y = this->get_parameter("lookahead_y").as_int();
 
         detector_.setParams(params);

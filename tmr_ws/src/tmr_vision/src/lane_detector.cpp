@@ -17,26 +17,32 @@ void LaneDetector::setParams(const VisionParams& params) {
 }
 
 void LaneDetector::updatePerspectiveMatrix(int img_w, int img_h) {
-    // Definición del trapecio de entrada (ROI frontal proyectado en el piso)
-    float y_top = img_h * params_.roi_top_pct;
-    float y_bottom = img_h * params_.roi_bottom_pct;
+    // Definición del trapecio frontal calibrado con medidas reales:
+    // Base a 10 cm del auto: abarca 43 cm de ancho en el piso.
+    // Carril oficial: 40 cm.
+    float y_top = img_h * static_cast<float>(params_.roi_top_pct);
+    float y_bottom = img_h * static_cast<float>(params_.roi_bottom_pct);
 
-    // Puntos fuente (trapecio en la imagen original)
+    // Puntos fuente (trapecio en imagen original 640x480)
     std::vector<cv::Point2f> src_pts = {
-        cv::Point2f(img_w * 0.15f, y_bottom),  // Inferior Izquierda
-        cv::Point2f(img_w * 0.85f, y_bottom),  // Inferior Derecha
-        cv::Point2f(img_w * 0.65f, y_top),     // Superior Derecha
-        cv::Point2f(img_w * 0.35f, y_top)      // Superior Izquierda
+        cv::Point2f(img_w * 0.05f, y_bottom),  // Inferior Izquierda (~32 px)
+        cv::Point2f(img_w * 0.95f, y_bottom),  // Inferior Derecha (~608 px)
+        cv::Point2f(img_w * 0.74f, y_top),     // Superior Derecha (a 2 baldosas de profundidad)
+        cv::Point2f(img_w * 0.26f, y_top)      // Superior Izquierda
     };
 
-    // Puntos destino (rectángulo en vista de pájaro Bird's Eye View)
+    // Puntos destino: Rectángulo métrico en Bird's Eye View (60 cm de ancho total x 60 cm de profundidad)
     float bw = static_cast<float>(params_.bird_view_width);
     float bh = static_cast<float>(params_.bird_view_height);
+    // Carril de 40 cm centrado en ancho total de 60 cm: 67 px a cada margen lateral
+    float lane_left_px = (0.60f - 0.40f) / 2.0f / 0.60f * bw;
+    float lane_right_px = bw - lane_left_px;
+
     std::vector<cv::Point2f> dst_pts = {
-        cv::Point2f(bw * 0.20f, bh),
-        cv::Point2f(bw * 0.80f, bh),
-        cv::Point2f(bw * 0.80f, 0.0f),
-        cv::Point2f(bw * 0.20f, 0.0f)
+        cv::Point2f(lane_left_px, bh),
+        cv::Point2f(lane_right_px, bh),
+        cv::Point2f(lane_right_px, 0.0f),
+        cv::Point2f(lane_left_px, 0.0f)
     };
 
     perspective_matrix_ = cv::getPerspectiveTransform(src_pts, dst_pts);
@@ -44,14 +50,37 @@ void LaneDetector::updatePerspectiveMatrix(int img_w, int img_h) {
 }
 
 cv::Mat LaneDetector::preprocess(const cv::Mat& bgr) {
-    cv::Mat gray, blurred, binary;
+    cv::Mat gray, warped_gray, blurred, binary;
     cv::cvtColor(bgr, gray, cv::COLOR_BGR2GRAY);
-    cv::GaussianBlur(gray, blurred, cv::Size(5, 5), 0);
+
+    // 1. Transformación a Bird's Eye View (IPM) en escala de grises
+    // Realizar la perspectiva en grises garantiza escala métrica uniforme (0.0015 m/px)
+    cv::warpPerspective(gray, warped_gray, perspective_matrix_,
+                        cv::Size(params_.bird_view_width, params_.bird_view_height));
+
+    if (params_.filter_glare) {
+        // Filtro Morfológico Top-Hat para eliminar reflejos de reflectores/lámparas sobre la lona negra del torneo.
+        // En la vista IPM, la línea de 4 cm mide ~27 px. Un kernel horizontal de ~7 cm (47 px) elimina
+        // manchas grandes de reflejo de lámparas del techo y conserva únicamente las franjas delgadas del carril.
+        int k_width = static_cast<int>(0.07 / params_.pixels_to_meters);
+        if (k_width % 2 == 0) k_width += 1;
+        cv::Mat tophat_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(k_width, 3));
+        cv::Mat tophat;
+        cv::morphologyEx(warped_gray, tophat, cv::MORPH_TOPHAT, tophat_kernel);
+        warped_gray = tophat;
+    }
+
+    cv::GaussianBlur(warped_gray, blurred, cv::Size(5, 5), 0);
+
+    // Tipo de binarización:
+    // invert_binary = true: cinta negra en piso blanco (entorno de prueba actual)
+    // invert_binary = false: cinta blanca en lona negra (entorno oficial del torneo)
+    int thresh_type = params_.invert_binary ? cv::THRESH_BINARY_INV : cv::THRESH_BINARY;
 
     if (params_.use_otsu) {
-        cv::threshold(blurred, binary, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+        cv::threshold(blurred, binary, 0, 255, thresh_type | cv::THRESH_OTSU);
     } else {
-        cv::threshold(blurred, binary, params_.binary_threshold, 255, cv::THRESH_BINARY);
+        cv::threshold(blurred, binary, params_.binary_threshold, 255, thresh_type);
     }
 
     // Operación morfológica para cerrar pequeños huecos en las líneas
@@ -118,23 +147,31 @@ LaneDetectionResult LaneDetector::extractLaneCenter(const cv::Mat& warped_binary
         int mid_y = (win_y_top + win_y_bottom) / 2;
         int found_center_x = -1;
 
-        int thresh_sum = 255 * (window_height / 3); // Mínimo de píxeles para considerar línea válida
+        int thresh_sum = 255 * (window_height / 4); // Mínimo de píxeles para considerar línea válida
 
-        if (left_max > thresh_sum && right_max > thresh_sum) {
-            // Se detectaron ambas líneas del carril
-            found_center_x = (left_idx + right_idx) / 2;
-            cv::circle(debug_vis, cv::Point(left_idx, mid_y), 4, cv::Scalar(255, 0, 0), -1);
-            cv::circle(debug_vis, cv::Point(right_idx, mid_y), 4, cv::Scalar(0, 0, 255), -1);
+        // Regla oficial TMR: mantener el carro a 4 cm del borde de la línea derecha
+        // Distancia objetivo del centro del carro al CENTROIDE de la cinta derecha:
+        // D = (car_width / 2) + target_right_margin + (line_thickness / 2)
+        // Ejemplo prueba (cinta 2 cm): 0.09 + 0.04 + 0.01 = 0.14 m
+        // Ejemplo torneo (cinta 4 cm): 0.09 + 0.04 + 0.02 = 0.15 m
+        double target_dist_to_right_m = (params_.car_width_m / 2.0) + params_.target_right_margin_m + (params_.line_thickness_m / 2.0);
+        int target_dist_px = static_cast<int>(target_dist_to_right_m / params_.pixels_to_meters);
+        int lane_px = static_cast<int>(params_.lane_width_m / params_.pixels_to_meters);
+
+        if (right_max > thresh_sum) {
+            // Prioridad: Línea derecha detectada -> Ubicar el centro del auto respecto a la línea derecha
+            found_center_x = right_idx - target_dist_px;
+            cv::circle(debug_vis, cv::Point(right_idx, mid_y), 4, cv::Scalar(0, 0, 255), -1); // Línea derecha = ROJO
+
+            if (left_max > thresh_sum) {
+                cv::circle(debug_vis, cv::Point(left_idx, mid_y), 4, cv::Scalar(255, 0, 0), -1); // Línea izquierda = AZUL
+                int lane_mid = (left_idx + right_idx) / 2;
+                cv::circle(debug_vis, cv::Point(lane_mid, mid_y), 2, cv::Scalar(255, 255, 0), -1); // Centro carril = CIAN
+            }
         } else if (left_max > thresh_sum) {
-            // Solo línea izquierda detectada: estimar centro sumando medio ancho de carril
-            int lane_px = static_cast<int>(params_.lane_width_m / params_.pixels_to_meters);
-            found_center_x = left_idx + (lane_px / 2);
+            // Si solo se ve la línea izquierda: proyectar hacia la derecha manteniendo el carril
+            found_center_x = left_idx + (lane_px - target_dist_px);
             cv::circle(debug_vis, cv::Point(left_idx, mid_y), 4, cv::Scalar(255, 0, 0), -1);
-        } else if (right_max > thresh_sum) {
-            // Solo línea derecha detectada: estimar centro restando medio ancho de carril
-            int lane_px = static_cast<int>(params_.lane_width_m / params_.pixels_to_meters);
-            found_center_x = right_idx - (lane_px / 2);
-            cv::circle(debug_vis, cv::Point(right_idx, mid_y), 4, cv::Scalar(0, 0, 255), -1);
         }
 
         if (found_center_x > 0 && found_center_x < bw) {
@@ -194,9 +231,8 @@ LaneDetectionResult LaneDetector::process(const cv::Mat& input_frame, cv::Mat& d
         return LaneDetectionResult();
     }
 
-    cv::Mat binary = preprocess(input_frame);
-    cv::Mat warped = warpPerspective(binary);
-    return extractLaneCenter(warped, debug_visualization);
+    cv::Mat warped_binary = preprocess(input_frame);
+    return extractLaneCenter(warped_binary, debug_visualization);
 }
 
 } // namespace tmr_vision
